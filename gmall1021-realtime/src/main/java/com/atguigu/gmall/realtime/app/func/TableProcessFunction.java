@@ -21,16 +21,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-// 分流处理函数
+/**
+ * 分流处理函数
+ */
 public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, String, JSONObject> {
 
+    /**
+     * 声明数据库连接
+     */
     private Connection conn;
 
-    // 分流标记
+    /**
+     * 分流标记
+     */
     private OutputTag<JSONObject> dimOutputTag;
-
-    // 状态描述器
-    MapStateDescriptor<String, TableProcess> mapStateDescriptor;
+    /**
+     * 状态描述器
+     */
+    private final MapStateDescriptor<String, TableProcess> mapStateDescriptor;
 
     public TableProcessFunction(OutputTag<JSONObject> dimOutputTag, MapStateDescriptor<String, TableProcess> mapStateDescriptor) {
         this.dimOutputTag = dimOutputTag;
@@ -40,12 +48,15 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
-        // 注册驱动
+        // 加载驱动
         Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
-        // 建立连接
+        // 获取连接
         conn = DriverManager.getConnection(GmallConfig.PHOENIX_SERVER);
     }
 
+    /**
+     * 处理主流中数据
+     */
     @Override
     public void processElement(JSONObject jsonObj, ReadOnlyContext ctx, Collector<JSONObject> out) throws Exception {
         // 从状态获取配置信息
@@ -55,21 +66,22 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
         // 获取操作类型
         String type = jsonObj.getString("type");
 
-        // 注：如果使用maxwell的bootstrap接受历史数据，接受的类型是bootstrap-insert
-        if (type.equals("bootstrap-insert")) {
+        // 注：如果使用maxwell的bootstrap接受历史数据，接收的类型bootstrap-insert
+        if ("bootstrap-insert".equals(type)) {
             type = "insert";
             jsonObj.put("type", type);
         }
-        // 拼接状态中的key
+
+        // 拼接状态中的 key
         String key = tableName + ":" + type;
         TableProcess tableProcess = broadcastState.get(key);
         if (tableProcess != null) {
             // 获取数据信息
             JSONObject dataJsonObj = jsonObj.getJSONObject("data");
-            // 获取输出目的地的表明或者主题名
+            // 获取输出的地的表名或者主题名
             jsonObj.put("sink_table", tableProcess.getSinkTable());
 
-            // 根据配置表中的sink——column对数据进行字段过滤
+            // 根据配置表中的sink_column对数据进行字段过滤
             String sinkColumns = tableProcess.getSinkColumns();
             if (sinkColumns != null && sinkColumns.length() > 0) {
                 filterColumn(dataJsonObj, sinkColumns);
@@ -87,7 +99,6 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
             System.out.println("No this Key in TableProcess: " + key);
         }
 
-
     }
 
     //根据配置表中的sinkColumn配置，对json对象中的数据进行过滤，将没有在配置表中出现的字段过滤掉
@@ -97,16 +108,18 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
         List<String> fieldList = Arrays.asList(fieldArr);
 
         Set<Map.Entry<String, Object>> entrySet = dataJsonObj.entrySet();
-        entrySet.removeIf(ele -> !fieldList.contains(ele.getKey()));
+        entrySet.removeIf(ele->!fieldList.contains(ele.getKey()));
     }
 
-    //处理广播流中的数据   配置信息 jsonStr: {"database":"","table":"","type":"","data":{}}
+    /**
+     * 处理广播流中的数据配置信息 jsonStr: {"database":"","table":"","type":"","data":{}}
+     */
     @Override
     public void processBroadcastElement(String jsonStr, Context ctx, Collector<JSONObject> out) throws Exception {
         // 将字符串转换为json对象
         JSONObject jsonObj = JSON.parseObject(jsonStr);
         String dataJsonStr = jsonObj.getString("data");
-        // 将data自负床转换为TableProcess实体类对象
+        // 将data字符串转换为TableProcess实体类对象
         TableProcess tableProcess = JSON.parseObject(dataJsonStr, TableProcess.class);
         if (tableProcess != null) {
             // 获取业务数据库表明
@@ -123,10 +136,10 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
             String sinkPk = tableProcess.getSinkPk();
             // 建表扩展
             String sinkExtend = tableProcess.getSinkExtend();
-            // 拼接状态中的key source:operationType
+            // 拼接状态中的key  source:operationType
             String key = sourceTable + ":" + operateType;
 
-            // 判断是不是维度数据表的配置， 如果是维度数据，提前在hbase中建表
+            // 判断是不是维度数据表的配置，如果是维度数据，提前在hbase中建表
             if (TableProcess.SINK_TYPE_HBASE.equals(sinkType) && "insert".equals(operateType)) {
                 checkTable(sinkTable, sinkColumns, sinkPk, sinkExtend);
             }
@@ -135,7 +148,9 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
         }
     }
 
-    // 完成通过Phoenix对维度数据进行建表
+    /**
+     * 完成通过Phoenix对维度数据进行建表
+     */
     private void checkTable(String tableName, String fields, String pk, String ext) {
         if (pk == null) {
             pk = "id";
@@ -153,33 +168,33 @@ public class TableProcessFunction extends BroadcastProcessFunction<JSONObject, S
         for (int i = 0; i < fieldsArr.length; i++) {
             String field = fieldsArr[i];
             if (field.equals(pk)) {
-                createSql.append(field + " varchar primary key");
+                createSql.append(field).append(" varchar primary key");
             } else {
-                createSql.append(field + " varchar ");
+                createSql.append(field).append(" varchar");
             }
             if (i < fieldsArr.length - 1) {
                 createSql.append(",");
             }
         }
-        createSql.append(")" + ext);
+        createSql.append(")").append(ext);
         System.out.println("建表语句为：" + createSql);
 
+        // 创建预执行语句
         PreparedStatement ps = null;
-        // 创建数据库操作对象
         try {
             ps = conn.prepareStatement(createSql.toString());
             // 执行sql语句
             ps.execute();
-        } catch (SQLException throwables) {
-            throwables.printStackTrace();
-            throw new RuntimeException("在Phoenix中建表失败");
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new RuntimeException("在Phoenix中创建表失败");
         } finally {
             // 释放资源
             if (ps != null) {
                 try {
                     ps.close();
-                } catch (SQLException throwables) {
-                    throwables.printStackTrace();
+                } catch (SQLException e) {
+                    e.printStackTrace();
                 }
             }
         }
