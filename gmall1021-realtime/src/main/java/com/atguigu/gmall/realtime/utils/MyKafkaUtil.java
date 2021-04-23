@@ -14,28 +14,38 @@ import java.util.Properties;
  */
 public class MyKafkaUtil {
 
-    private static String kafkaServer = "hadoop102:9092,hadoop103:9092,hadoop104:9092";
+    /**
+     * kafka相关的配置
+     */
+    private final static String KAFKA_SERVER = "hadoop102:9092,hadoop103:9092,hadoop104:9092";
     private static final String DEFAULT_TOPIC = "DEFAULT_DATA";
 
-    //source Kafka消费者
+    /**
+     * source Kafka消费者
+     */
     public static FlinkKafkaConsumer<String> getKafkaSource(String topic, String groupId) {
-        Properties prop = new Properties();
-        prop.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
-        prop.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
-        return new FlinkKafkaConsumer<String>(topic, new SimpleStringSchema(), prop);
+        Properties properties = new Properties();
+        properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_SERVER);
+        return new FlinkKafkaConsumer<String>(topic, new SimpleStringSchema(), properties);
     }
 
-    // sink kafka生产者
+    /**
+     * sink kafka生产者
+     */
     public static FlinkKafkaProducer<String> getKafkaSink(String topic) {
-        return new FlinkKafkaProducer<>(kafkaServer, topic, new SimpleStringSchema());
+        return new FlinkKafkaProducer<String>(KAFKA_SERVER, topic, new SimpleStringSchema());
     }
 
-    // 封装Kafka生产者 动态指定多个不同的主题
+
+    /**
+     * 封装Kafka生产者 动态指定多个不同的主题
+     */
     public static <T> FlinkKafkaProducer<T> getKafkaSinkBySchema(KafkaSerializationSchema<T> serializationSchema) {
-        Properties prop = new Properties();
-        prop.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
-        // 如果15分钟没有更新状态，则超时 默认 1 分钟
-        prop.setProperty(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 1000 * 60 * 15 + "");
-        return new FlinkKafkaProducer<T>(DEFAULT_TOPIC, serializationSchema, prop, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
+        Properties properties = new Properties();
+        properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_SERVER);
+        // 如果超过15分钟没有更新状态，则超时。默认1分钟
+        properties.setProperty(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 1000 * 60 * 15 + "");
+        return new FlinkKafkaProducer<T>(DEFAULT_TOPIC, serializationSchema, properties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
     }
 }
