@@ -24,11 +24,11 @@ import javax.annotation.Nullable;
 // 业务数据的动态分流
 public class BaseDBApp {
     public static void main(String[] args) throws Exception {
-        // TODO: 2021/4/17 1.基本环境准备
+        // TODO: 2021/4/17 基本环境准备
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(4);
 //        env.enableCheckpointing(5000L, CheckpointingMode.EXACTLY_ONCE);
-        env.getCheckpointConfig().setCheckpointTimeout(60000L);
+//        env.getCheckpointConfig().setCheckpointTimeout(60000L);
 //        env.setStateBackend(new FsStateBackend("hdfs://hadoop102:9820/gmall/flink/checkpoint"));
 //        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 3000L));
 //        System.setProperty("HADOOP_USER_NAME", "atguigu");
@@ -36,13 +36,13 @@ public class BaseDBApp {
         // TODO: 2021/4/17 2.从kafka中读取数据
         String topic = "ods_base_db_m";
         String groupId = "base_db_app_group";
-        DataStreamSource<String> kafkaDS = env.addSource(MyKafkaUtil.getKafkaSource(topic, groupId));
+        DataStreamSource<String> kafkaSource = env.addSource(MyKafkaUtil.getKafkaSource(topic, groupId));
 
-        // TODO: 2021/4/17 3.对流中的数据进行结构转换 string -> JsonOBj
-        SingleOutputStreamOperator<JSONObject> jsonObjDS = kafkaDS.map(JSON::parseObject);
+        // TODO: 2021/4/17 对流中的数据进行结构转换 string -> JsonOBj
+        SingleOutputStreamOperator<JSONObject> jsonObjStream = kafkaSource.map(JSON::parseObject);
 
-        // TODO: 2021/4/17 4.简单的ETL
-        SingleOutputStreamOperator<JSONObject> filterDS = jsonObjDS.filter(new FilterFunction<JSONObject>() {
+        // TODO: 2021/4/17 简单的ETL
+        SingleOutputStreamOperator<JSONObject> filteredStream = jsonObjStream.filter(new FilterFunction<JSONObject>() {
             @Override
             public boolean filter(JSONObject jsonObj) throws Exception {
                 boolean flag = jsonObj.getString("table") != null
@@ -50,6 +50,7 @@ public class BaseDBApp {
                         && jsonObj.getJSONObject("data") != null
                         && jsonObj.getString("data").length() > 3;
                 return flag;
+
             }
         });
 
@@ -59,31 +60,28 @@ public class BaseDBApp {
                 .port(3306)
                 .username("root")
                 .password("123456")
-                .databaseList("gmall2021_realtime")
+                .databaseList("gmall2021_realtime") // monitor all tables under inventory database
                 .tableList("gmall2021_realtime.table_process")
                 .startupOptions(StartupOptions.initial())
-                .deserializer(new MyDeserializationSchemaFunction())
+                .deserializer(new MyDeserializationSchemaFunction()) // converts SourceRecord to String
                 .build();
-
-        DataStreamSource mysqlDS = env.addSource(sourceFunction);
-//        mysqlDS.print(">>");
-        MapStateDescriptor<String, TableProcess> mapStateDescriptor = new MapStateDescriptor<>("table-process", Types.STRING, Types.POJO(TableProcess.class));
-        BroadcastStream broadcastStream = mysqlDS.broadcast(mapStateDescriptor);
+        DataStreamSource<String> CDCStream = env.addSource(sourceFunction);
+//        CDCStream.print("cdc>>>");
+        MapStateDescriptor<String, TableProcess> mapStateDescriptor = new MapStateDescriptor<String, TableProcess>("mapStateDescriptor",Types.STRING, Types.POJO(TableProcess.class));
+        BroadcastStream<String> broadcastStream = CDCStream.broadcast(mapStateDescriptor);
 
         // TODO: 2021/4/18 连接主流和广播流
-        BroadcastConnectedStream connectedStream = filterDS.connect(broadcastStream);
-
+        BroadcastConnectedStream<JSONObject, String> connectedStream = filteredStream.connect(broadcastStream);
         // TODO: 2021/4/18 对数据进行分流操作 维度数据->侧输出流  事实数据放->放到主流
-        OutputTag<JSONObject> dimOutputTag = new OutputTag<JSONObject>("dimTag") {};
-        SingleOutputStreamOperator splitDS = connectedStream.process(new TableProcessFunction(dimOutputTag, mapStateDescriptor));
-
-        DataStream dimDS = splitDS.getSideOutput(dimOutputTag);
-        dimDS.print("维度》");
-        splitDS.print("事实》");
+        OutputTag<JSONObject> dimOutputTag = new OutputTag<JSONObject>("dimOutputTag"){};
+        SingleOutputStreamOperator<JSONObject> splitStream = connectedStream.process(new TableProcessFunction(dimOutputTag, mapStateDescriptor));
+        DataStream<JSONObject> dimOutputStream = splitStream.getSideOutput(dimOutputTag);
+        dimOutputStream.print("维度》》");
+        splitStream.print("事实》》");
 
         // TODO: 2021/4/19 将维度侧输出流的数据插入到Phoenix中
-        dimDS.addSink(new DimSink());
-        splitDS.addSink(MyKafkaUtil.<JSONObject>getKafkaSinkBySchema(new KafkaSerializationSchema<JSONObject>() {
+        dimOutputStream.addSink(new DimSink());
+        splitStream.addSink(MyKafkaUtil.<JSONObject>getKafkaSinkBySchema(new KafkaSerializationSchema<JSONObject>() {
             @Override
             public ProducerRecord<byte[], byte[]> serialize(JSONObject jsonObj, @Nullable Long aLong) {
                 // 获取保存到Kafka的哪个主题中
