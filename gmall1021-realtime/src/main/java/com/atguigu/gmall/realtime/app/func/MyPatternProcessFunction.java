@@ -9,7 +9,9 @@ import org.apache.flink.util.OutputTag;
 import java.util.List;
 import java.util.Map;
 
-// 处理超过10s未访问页面的数据
+/**
+ * 处理超过10s未访问页面的数据
+ */
 public class MyPatternProcessFunction extends PatternProcessFunction<JSONObject, String> implements TimedOutPartialMatchHandler<JSONObject> {
 
     OutputTag<String> timeoutTag;
@@ -26,7 +28,6 @@ public class MyPatternProcessFunction extends PatternProcessFunction<JSONObject,
     @Override
     public void processTimedOutMatch(Map<String, List<JSONObject>> match, Context ctx) throws Exception {
         JSONObject jsonObject = match.get("first").get(0);
-
         ctx.output(timeoutTag, jsonObject.toJSONString());
     }
 }
