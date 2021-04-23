@@ -48,7 +48,7 @@ public class DimSink extends RichSinkFunction<JSONObject> {
                 ps.execute();
                 // 注：phoenix手动提交事务（DML）语句
                 conn.commit();
-                System.out.println("执行写入phoenix的sql语句：" + upsertSql);
+//                System.out.println("执行写入phoenix的sql语句：" + upsertSql);
             } catch (SQLException e) {
                 e.printStackTrace();
                 throw new RuntimeException("向phoenix中写入数据失败");
