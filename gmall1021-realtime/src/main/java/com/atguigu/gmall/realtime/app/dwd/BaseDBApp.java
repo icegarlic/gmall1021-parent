@@ -21,7 +21,9 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 
 import javax.annotation.Nullable;
 
-// 业务数据的动态分流
+/**
+ * 业务数据的动态分流并 写入对应存储空间,维度 -> hbase,事实 -> kafka
+ */
 public class BaseDBApp {
     public static void main(String[] args) throws Exception {
         // TODO: 2021/4/17 基本环境准备
@@ -67,13 +69,14 @@ public class BaseDBApp {
                 .build();
         DataStreamSource<String> CDCStream = env.addSource(sourceFunction);
 //        CDCStream.print("cdc>>>");
-        MapStateDescriptor<String, TableProcess> mapStateDescriptor = new MapStateDescriptor<String, TableProcess>("mapStateDescriptor",Types.STRING, Types.POJO(TableProcess.class));
+        MapStateDescriptor<String, TableProcess> mapStateDescriptor = new MapStateDescriptor<String, TableProcess>("mapStateDescriptor", Types.STRING, Types.POJO(TableProcess.class));
         BroadcastStream<String> broadcastStream = CDCStream.broadcast(mapStateDescriptor);
 
         // TODO: 2021/4/18 连接主流和广播流
         BroadcastConnectedStream<JSONObject, String> connectedStream = filteredStream.connect(broadcastStream);
         // TODO: 2021/4/18 对数据进行分流操作 维度数据->侧输出流  事实数据放->放到主流
-        OutputTag<JSONObject> dimOutputTag = new OutputTag<JSONObject>("dimOutputTag"){};
+        OutputTag<JSONObject> dimOutputTag = new OutputTag<JSONObject>("dimOutputTag") {
+        };
         SingleOutputStreamOperator<JSONObject> splitStream = connectedStream.process(new TableProcessFunction(dimOutputTag, mapStateDescriptor));
         DataStream<JSONObject> dimOutputStream = splitStream.getSideOutput(dimOutputTag);
         dimOutputStream.print("维度》》");
@@ -88,7 +91,7 @@ public class BaseDBApp {
                 String topicName = jsonObj.getString("sink_table");
                 // 获取data数据
                 JSONObject dataJsonObj = jsonObj.getJSONObject("data");
-                return new ProducerRecord<>(topicName,dataJsonObj.toString().getBytes());
+                return new ProducerRecord<>(topicName, dataJsonObj.toString().getBytes());
             }
         }));
         env.execute();
