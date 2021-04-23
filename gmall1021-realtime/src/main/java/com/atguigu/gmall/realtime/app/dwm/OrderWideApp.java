@@ -39,68 +39,73 @@ public class OrderWideApp {
         String orderDetailSourceTopic = "dwd_order_detail";
         String orderWideSinkTopic = "dwm_order_wide";
         String groupId = "order_wide_group";
-
         DataStreamSource<String> orderInfoJsonStream = env.addSource(MyKafkaUtil.getKafkaSource(orderInfoSourceTopic, groupId));
         DataStreamSource<String> orderDetailJsonStream = env.addSource(MyKafkaUtil.getKafkaSource(orderDetailSourceTopic, groupId));
 
-        // 对数据及逆行结构转换
+        // 对数据结构转换
         SingleOutputStreamOperator<OrderInfo> orderInfoStream = orderInfoJsonStream.map(new RichMapFunction<String, OrderInfo>() {
-            SimpleDateFormat simpleDateFormat = null;
+            SimpleDateFormat sdf;
 
             @Override
             public void open(Configuration parameters) throws Exception {
                 super.open(parameters);
-                simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             }
 
             @Override
             public OrderInfo map(String jsonStr) throws Exception {
                 OrderInfo orderInfo = JSON.parseObject(jsonStr, OrderInfo.class);
-                orderInfo.setCreate_ts(simpleDateFormat.parse(orderInfo.getCreate_time()).getTime());
+                orderInfo.setCreate_ts(sdf.parse(orderInfo.getCreate_time()).getTime());
                 return orderInfo;
             }
         });
 
         SingleOutputStreamOperator<OrderDetail> orderDetailStream = orderDetailJsonStream.map(new RichMapFunction<String, OrderDetail>() {
-            private SimpleDateFormat simpleDateFormat;
+            SimpleDateFormat sdf;
 
             @Override
             public void open(Configuration parameters) throws Exception {
                 super.open(parameters);
-                simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+                sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
             }
 
             @Override
             public OrderDetail map(String jsonStr) throws Exception {
                 OrderDetail orderDetail = JSON.parseObject(jsonStr, OrderDetail.class);
-                orderDetail.setCreate_ts(simpleDateFormat.parse(orderDetail.getCreate_time()).getTime());
+                orderDetail.setCreate_ts(sdf.parse(orderDetail.getCreate_time()).getTime());
                 return orderDetail;
             }
         });
-//        orderInfoStream.print(">>>");
-//        orderDetailStream.print("###");
+//        orderInfoStream.print("订单>>");
+//        orderDetailStream.print("订单明细>>");
+
         // TODO: 2021/4/21 加上水位线
-        SingleOutputStreamOperator<OrderInfo> orderInfoWithEventTimeStream = orderInfoStream.assignTimestampsAndWatermarks(WatermarkStrategy.<OrderInfo>forMonotonousTimestamps()
-                .withTimestampAssigner(new SerializableTimestampAssigner<OrderInfo>() {
-                    @Override
-                    public long extractTimestamp(OrderInfo element, long recordTimestamp) {
-                        return element.getCreate_ts();
-                    }
-                }));
-        SingleOutputStreamOperator<OrderDetail> orderDetailWithEventTimeStream = orderDetailStream.assignTimestampsAndWatermarks(WatermarkStrategy.<OrderDetail>forMonotonousTimestamps()
-                .withTimestampAssigner(new SerializableTimestampAssigner<OrderDetail>() {
-                    @Override
-                    public long extractTimestamp(OrderDetail element, long recordTimestamp) {
-                        return element.getCreate_ts();
-                    }
-                }));
+        SingleOutputStreamOperator<OrderInfo> orderInfoWithEventTimeStream = orderInfoStream.assignTimestampsAndWatermarks(
+                WatermarkStrategy.<OrderInfo>forMonotonousTimestamps()
+                        .withTimestampAssigner(new SerializableTimestampAssigner<OrderInfo>() {
+                            @Override
+                            public long extractTimestamp(OrderInfo element, long recordTimestamp) {
+                                return element.getCreate_ts();
+                            }
+                        })
+        );
+        SingleOutputStreamOperator<OrderDetail> orderDetailWithEventTimeStream = orderDetailStream.assignTimestampsAndWatermarks(
+                WatermarkStrategy.<OrderDetail>forMonotonousTimestamps()
+                        .withTimestampAssigner(new SerializableTimestampAssigner<OrderDetail>() {
+                            @Override
+                            public long extractTimestamp(OrderDetail element, long recordTimestamp) {
+                                return element.getCreate_ts();
+                            }
+                        })
+        );
 
         // TODO: 2021/4/21 设定关联key
         KeyedStream<OrderInfo, Long> orderInfoKeyedStream = orderInfoWithEventTimeStream.keyBy(OrderInfo::getId);
         KeyedStream<OrderDetail, Long> orderDetailKeyedStream = orderDetailWithEventTimeStream.keyBy(OrderDetail::getOrder_id);
 
         // TODO: 2021/4/21 订单和订单明细关联 intervalJoin
-        SingleOutputStreamOperator<OrderWide> orderWideStream = orderInfoKeyedStream.intervalJoin(orderDetailKeyedStream)
+        SingleOutputStreamOperator<OrderWide> orderWideStream = orderInfoKeyedStream
+                .intervalJoin(orderDetailKeyedStream)
                 .between(Time.seconds(-5), Time.seconds(5))
                 .process(new ProcessJoinFunction<OrderInfo, OrderDetail, OrderWide>() {
                     @Override
@@ -108,7 +113,8 @@ public class OrderWideApp {
                         out.collect(new OrderWide(orderInfo, orderDetail));
                     }
                 });
-        orderWideStream.print("joined :: ");
+        orderWideStream.print("orderWide>>");
+
         env.execute();
     }
 }
