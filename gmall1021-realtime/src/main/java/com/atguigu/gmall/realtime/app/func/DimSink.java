@@ -11,56 +11,62 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
-// 处理维度数据
+/**
+ * 维度数据写入Hbase(phoenix)
+ */
 public class DimSink extends RichSinkFunction<JSONObject> {
+
+    /**
+     * 声明连接器
+     */
     private Connection conn;
 
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
-        // 注册驱动
+        // 加载驱动
         Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
-        // 建立连接
+        // 获取连接器
         conn = DriverManager.getConnection(GmallConfig.PHOENIX_SERVER);
     }
 
     @Override
     public void invoke(JSONObject jsonObj, Context context) throws Exception {
         super.invoke(jsonObj, context);
-        // 获取目的地表名
-        String tableName = jsonObj.getString("sink_table");
+        // 获取目的表名
+        String sinkTableName = jsonObj.getString("sink_table");
 
         // 获取data数据
         JSONObject dataJsonObj = jsonObj.getJSONObject("data");
         if (dataJsonObj != null && dataJsonObj.size() > 0) {
-            String upsertSql = genUpsertSql(tableName, dataJsonObj);
+            String upsertSql = genUpsertSql(sinkTableName, dataJsonObj);
 
-            // 创建数据库操作对象
+//            创建数据库连接对象
             PreparedStatement ps = null;
             try {
                 ps = conn.prepareStatement(upsertSql);
                 ps.execute();
-                // 注意：Phoenix需要手动提交事务
+                // 注：phoenix手动提交事务（DML）语句
                 conn.commit();
-                System.out.println("执行的SQL" + upsertSql);
+                System.out.println("执行写入phoenix的sql语句：" + upsertSql);
             } catch (SQLException e) {
                 e.printStackTrace();
-                throw new RuntimeException("向phoenix中插入数据失败");
+                throw new RuntimeException("向phoenix中写入数据失败");
             } finally {
-                if (ps!=null) {
+                if (ps != null) {
                     ps.close();
                 }
             }
-
         }
     }
 
-    //生成向Phoenix中插入数据的语句    "data":{"tm_name":"aaa","id":13}
+    /**
+     * 生成向Phoenix中插入数据的语句    "data":{"tm_name":"aaa","id":13}
+     */
     private String genUpsertSql(String tableName, JSONObject dataJsonObj) {
-        String upsertSql = "upsert into "+GmallConfig.HBASE_SCHEMA+
-                "."+tableName+" ("+StringUtils.join(dataJsonObj.keySet(),",")
-                +") values('"+StringUtils.join(dataJsonObj.values(),"','")+"')";
-
+        String upsertSql = "upsert into " + GmallConfig.HBASE_SCHEMA +
+                "." + tableName + " (" + StringUtils.join(dataJsonObj.keySet(), ",")
+                + ") values('" + StringUtils.join(dataJsonObj.values(), "','") + "')";
         return upsertSql;
     }
 }
