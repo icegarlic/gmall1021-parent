@@ -26,7 +26,7 @@ public class PhoenixUtil {
         }
     }
     //从Phoenix中查询数据
-    public static <T>List<T> queryList(String sql,Class<T> clz){
+    public static <T>List<T> queryList(String sql,Class<T> clzz){
         if(conn == null){
             initConnection();
         }
@@ -52,7 +52,7 @@ public class PhoenixUtil {
             */
             while(rs.next()){
                 //创建要封装的目标类型对象
-                T obj = clz.newInstance();
+                T obj = clzz.newInstance();
                 for (int i = 1; i <= columnCount; i++) {
                     //获取列名
                     String columnName = metaData.getColumnName(i);
