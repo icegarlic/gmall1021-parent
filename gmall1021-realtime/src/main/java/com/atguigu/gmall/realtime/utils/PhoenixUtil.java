@@ -27,7 +27,9 @@ public class PhoenixUtil {
         }
     }
 
-    //从Phoenix中查询数据
+    /**
+     * 从Phoenix中查询数据
+     */
     public static <T> List<T> queryList(String sql, Class<T> clazz) {
         if (conn == null) {
             initConnection();
