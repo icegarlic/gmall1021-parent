@@ -2,6 +2,7 @@ package com.atguigu.gmall.realtime.app.func;
 
 import com.alibaba.fastjson.JSONObject;
 import com.atguigu.gmall.realtime.common.GmallConfig;
+import com.atguigu.gmall.realtime.utils.DimUtil;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
@@ -57,6 +58,12 @@ public class DimSink extends RichSinkFunction<JSONObject> {
                     ps.close();
                 }
             }
+            // 删除失效缓存
+            if (jsonObj.getString("type").equals("update")
+                    || jsonObj.getString("type").equals("delete")) {
+                DimUtil.deleteCached(sinkTableName, dataJsonObj.getString("id"));
+            }
+
         }
     }
 
