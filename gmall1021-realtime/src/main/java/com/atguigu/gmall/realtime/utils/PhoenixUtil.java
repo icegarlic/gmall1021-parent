@@ -13,7 +13,8 @@ import java.util.List;
  */
 public class PhoenixUtil {
     private static Connection conn;
-    public static void initConnection(){
+
+    public static void initConnection() {
         try {
             //注册驱动
             Class.forName("org.apache.phoenix.jdbc.PhoenixDriver");
@@ -25,9 +26,10 @@ public class PhoenixUtil {
             e.printStackTrace();
         }
     }
+
     //从Phoenix中查询数据
-    public static <T>List<T> queryList(String sql,Class<T> clzz){
-        if(conn == null){
+    public static <T> List<T> queryList(String sql, Class<T> clazz) {
+        if (conn == null) {
             initConnection();
         }
 
@@ -50,29 +52,29 @@ public class PhoenixUtil {
                 14      cc
                 15      qq
             */
-            while(rs.next()){
+            while (rs.next()) {
                 //创建要封装的目标类型对象
-                T obj = clzz.newInstance();
+                T obj = clazz.newInstance();
                 for (int i = 1; i <= columnCount; i++) {
                     //获取列名
                     String columnName = metaData.getColumnName(i);
                     //给对象的属性赋值
-                    BeanUtils.setProperty(obj,columnName,rs.getObject(i));
+                    BeanUtils.setProperty(obj, columnName, rs.getObject(i));
                 }
                 resList.add(obj);
             }
         } catch (Exception e) {
             e.printStackTrace();
-        }finally {
+        } finally {
             //释放资源
-            if(rs != null){
+            if (rs != null) {
                 try {
                     rs.close();
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
             }
-            if(ps != null){
+            if (ps != null) {
                 try {
                     ps.close();
                 } catch (SQLException e) {
