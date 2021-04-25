@@ -11,37 +11,39 @@ import java.util.List;
  * 从Phoenix中查询维度数据的工具类
  */
 public class DimUtil {
-    //直接从Phoenix中查询维度数据，没有缓存
+
+    /**
+     * 直接从Phoenix中查询数据，没有缓存
+     */
     public static JSONObject getDimInfoNoCache(String tableName, Tuple2<String, String>... columnNameAndValues) {
-        //定义维度查询的SQL
-        String dimSql = "select * from " + tableName + " where ";
+        // 定义sql查询语句
+        StringBuilder dimSql = new StringBuilder("select * from " + tableName + " where ");
         for (int i = 0; i < columnNameAndValues.length; i++) {
             Tuple2<String, String> columnNameAndValue = columnNameAndValues[i];
             String columnName = columnNameAndValue.f0;
             String columnValue = columnNameAndValue.f1;
             if (i > 0) {
-                dimSql += " and ";
+                dimSql.append(" and ");
             }
-            dimSql += columnName + " ='" + columnValue + "' ";
+            dimSql.append(columnName).append(" ='").append(columnValue).append("'");
         }
-
-        System.out.println("维度查询的SQL:" + dimSql);
+        System.out.println("维度查询的sql：" + dimSql);
 
         JSONObject dimInfoJsonObj = null;
-        //调用封装的PhoenixUtil工具类中的查询方法
-        List<JSONObject> dimInfoList = PhoenixUtil.queryList(dimSql, JSONObject.class);
+        // 调用封装的PhoenixUtil工具类中的查询方法
+        List<JSONObject> dimInfoList = PhoenixUtil.queryList(dimSql.toString(), JSONObject.class);
         if (dimInfoList != null && dimInfoList.size() > 0) {
             dimInfoJsonObj = dimInfoList.get(0);
         } else {
-            System.out.println("没有查询到维度数据:" + dimSql);
+            System.out.println("没有查询到维度数据：" + dimSql);
         }
         return dimInfoJsonObj;
     }
 
-
     public static JSONObject getDimInfo(String tableName, String id) {
-        return getDimInfo(tableName,Tuple2.of("id",id));
+        return getDimInfo(tableName, Tuple2.of("id", id));
     }
+
     /*
         旁路缓存:先从缓存Redis中查询维度数据，如果Redis中存在，那么直接返回；
             如果Redis中不存在，再到Phoenix中查询，并且将查询到的维度数据放到Redis中缓存起来
@@ -52,81 +54,81 @@ public class DimUtil {
             ttl:    1day
     */
     public static JSONObject getDimInfo(String tableName, Tuple2<String, String>... columnNameAndValues) {
-        //定义维度查询的SQL
-        String dimSql = "select * from " + tableName + " where ";
-        //定义操作Redis的key     dim:dim_base_trademark:
-        String redisKey = "dim:" + tableName.toLowerCase() + ":";
-
+        // 定义维度查询sql
+        StringBuilder dimSql = new StringBuilder("select * from " + tableName + " where ");
+        // 定义操作redis的key dim:dim_base_trademark:
+        StringBuilder redisKey = new StringBuilder("dim:" + tableName.toLowerCase() + ":");
         for (int i = 0; i < columnNameAndValues.length; i++) {
             Tuple2<String, String> columnNameAndValue = columnNameAndValues[i];
             String columnName = columnNameAndValue.f0;
             String columnValue = columnNameAndValue.f1;
             if (i > 0) {
-                dimSql += " and ";
-                redisKey += "_";
+                dimSql.append(" and ");
+                redisKey.append("_");
             }
-            dimSql += columnName + " ='" + columnValue + "' ";
+            dimSql.append(columnName).append(" ='").append(columnValue).append("'");
             //dim:dim_base_trademark:15_qq
-            redisKey += columnValue;
+            redisKey.append(columnValue);
         }
 
-        //根据redisKey到redis中查询维度数据
+        // 从redis中获取数据
         Jedis jedis = null;
         String dimJsonStr = null;
-        JSONObject dimInfoJsonObj = null;
+        JSONObject dimJsonObj = null;
 
         try {
             jedis = RedisUtil.getJedis();
-            dimJsonStr = jedis.get(redisKey);
+            dimJsonStr = jedis.get(redisKey.toString());
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("从Redis缓存中获取维度数据失败:" + redisKey);
+            throw new RuntimeException("从Redis缓存中获取数据失败：" + redisKey);
         }
 
-        //判断是否从Redis缓存中获取到了数据
+        // 判断是否从Redis缓存中获取到了数据
         if (dimJsonStr != null && dimJsonStr.length() > 0) {
-            dimInfoJsonObj = JSON.parseObject(dimJsonStr);
+            dimJsonObj = JSON.parseObject(dimJsonStr);
         } else {
-            //在缓存中没有查到维度数据
-            System.out.println("维度查询的SQL:" + dimSql);
-            //调用封装的PhoenixUtil工具类中的查询方法
-            List<JSONObject> dimInfoList = PhoenixUtil.queryList(dimSql, JSONObject.class);
+            // 在缓存中没有查到维度数据
+            System.out.println("维度查询的SQL：" + dimSql);
+            // 调用封装的PhoenixUtil工具类中的查询方法
+            List<JSONObject> dimInfoList = PhoenixUtil.queryList(dimSql.toString(), JSONObject.class);
             if (dimInfoList != null && dimInfoList.size() > 0) {
-                dimInfoJsonObj = dimInfoList.get(0);
-                //将查询的结果写到Redis中
+                dimJsonObj = dimInfoList.get(0);
+                // 将查询的结果写到Redis中
                 if (jedis != null) {
-                    jedis.setex(redisKey,3600*24,dimInfoJsonObj.toJSONString());
+                    jedis.setex(redisKey.toString(), 3600 * 24, dimJsonObj.toJSONString());
                 }
             } else {
-                System.out.println("没有查询到维度数据:" + dimSql);
+                System.out.println("没有查询到维度数据：" + dimSql);
             }
         }
 
-        //关闭Redis连接
-        if(jedis != null){
+        // 关闭Redis连接
+        if (jedis != null) {
             jedis.close();
         }
-        return dimInfoJsonObj;
+        return dimJsonObj;
     }
 
-    //失效Redis中的缓存
-    public static void deleteCached(String tableName,String id){
-        //定义redisKey
-        String redisKey = "dim:" + tableName.toLowerCase() + ":"+id;
+    /**
+     * 删除失效缓存
+     */
+    public static void deleteCached(String tableName,String id) {
+        // 定义redisKey
+        String redisKey = "dim:" + tableName.toLowerCase() + ":" + id;
         try {
             Jedis jedis = RedisUtil.getJedis();
             jedis.del(redisKey);
             jedis.close();
         } catch (Exception e) {
             e.printStackTrace();
-            throw new RuntimeException("删除Redis中的缓存失败");
+            throw new RuntimeException("删除Redis中失效的缓存失败");
         }
     }
 
     public static void main(String[] args) {
-        //JSONObject dimInfo = getDimInfoNoCache("DIM_BASE_TRADEMARK", Tuple2.of("id", "15"));
+//        JSONObject dimInfo = getDimInfoNoCache("DIM_BASE_TRADEMARK", Tuple2.of("tm_name", "香奈儿"));
         JSONObject dimInfo = getDimInfo("DIM_BASE_TRADEMARK", "12");
-
         System.out.println(dimInfo);
     }
 }
