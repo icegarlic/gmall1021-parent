@@ -120,6 +120,7 @@ public class DimUtil {
             Jedis jedis = RedisUtil.getJedis();
             jedis.del(redisKey);
             jedis.close();
+            System.out.println("删除Redis中失效的缓存成功");
         } catch (Exception e) {
             e.printStackTrace();
             throw new RuntimeException("删除Redis中失效的缓存失败");
