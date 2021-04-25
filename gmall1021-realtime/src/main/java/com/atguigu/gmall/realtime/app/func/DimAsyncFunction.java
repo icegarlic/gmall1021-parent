@@ -21,6 +21,10 @@ public abstract class DimAsyncFunction<T> extends RichAsyncFunction<T, T> implem
     private ExecutorService executorService;
     private String tableName;
 
+    public DimAsyncFunction(String tableName) {
+        this.tableName = tableName;
+    }
+
     @Override
     public void open(Configuration parameters) throws Exception {
         super.open(parameters);
