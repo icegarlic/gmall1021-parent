@@ -225,7 +225,8 @@ public class OrderWideApp {
 
         // TODO: 2021/4/25 关联spu维度
         SingleOutputStreamOperator<OrderWide> orderWideWithSpuStream = AsyncDataStream.unorderedWait(
-                orderWideWithSkuStream, new DimAsyncFunction<OrderWide>("DIM_SPU_INFO") {
+                orderWideWithSkuStream,
+                new DimAsyncFunction<OrderWide>("DIM_SPU_INFO") {
                     @Override
                     public void join(OrderWide orderWide, JSONObject jsonObject) throws Exception {
                         orderWide.setSpu_name(jsonObject.getString("SPU_NAME"));
@@ -241,7 +242,8 @@ public class OrderWideApp {
 
         // TODO: 2021/4/25 关联品类维度
         SingleOutputStreamOperator<OrderWide> orderWideWithCategoryStream = AsyncDataStream.unorderedWait(
-                orderWideWithSpuStream, new DimAsyncFunction<OrderWide>("DIM_BASE_CATEGORY3") {
+                orderWideWithSpuStream,
+                new DimAsyncFunction<OrderWide>("DIM_BASE_CATEGORY3") {
                     @Override
                     public void join(OrderWide orderWide, JSONObject jsonObject) throws Exception {
                         orderWide.setCategory3_name(jsonObject.getString("NAME"));
@@ -252,7 +254,24 @@ public class OrderWideApp {
                         return String.valueOf(orderWide.getCategory3_id());
                     }
                 }, 60, TimeUnit.SECONDS);
-        orderWideWithCategoryStream.print(">>");
+//        orderWideWithCategoryStream.print(">>");
+
+        // TODO: 2021/4/25 关联品牌维度
+        SingleOutputStreamOperator<OrderWide> orderWideWithTmStream = AsyncDataStream.unorderedWait(
+                orderWideWithCategoryStream,
+                new DimAsyncFunction<OrderWide>("DIM_BASE_TRADEMARK") {
+                    @Override
+                    public void join(OrderWide orderWide, JSONObject jsonObject) throws Exception {
+                        orderWide.setTm_name(jsonObject.getString("TM_NAME"));
+                    }
+
+                    @Override
+                    public String getKey(OrderWide orderWide) {
+                        return String.valueOf(orderWide.getTm_id());
+                    }
+                }, 60, TimeUnit.SECONDS);
+//        orderWideWithTmStream.print("tm");
+
 
         env.execute();
     }
