@@ -20,6 +20,7 @@ import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
+import java.nio.channels.SelectionKey;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.Period;
@@ -199,7 +200,30 @@ public class OrderWideApp {
                     }
                 }, 60, TimeUnit.SECONDS
         );
-        orderWideWithProvinceStream.print(">>");
+//        orderWideWithProvinceStream.print(">>");
+
+        // TODO: 2021/4/25 关联SKU维度
+        SingleOutputStreamOperator<OrderWide> orderWideWithSkuStream = AsyncDataStream.unorderedWait(
+                orderWideWithProvinceStream,
+                new DimAsyncFunction<OrderWide>("DIM_SKU_INFO") {
+
+                    @Override
+                    public String getKey(OrderWide orderWide) {
+                        return orderWide.getSku_id().toString();
+                    }
+
+                    @Override
+                    public void join(OrderWide orderWide, JSONObject dimInfoJsonObj) throws Exception {
+                        orderWide.setSku_name(dimInfoJsonObj.getString("SKU_NAME"));
+                        orderWide.setCategory3_id(dimInfoJsonObj.getLong("CATEGORY3_ID"));
+                        orderWide.setSpu_id(dimInfoJsonObj.getLong("SPU_ID"));
+                        orderWide.setTm_id(dimInfoJsonObj.getLong("TM_ID"));
+                    }
+                }, 60, TimeUnit.SECONDS
+        );
+//        orderWideWithSkuStream.print("@@");
+
+
 
         env.execute();
     }
