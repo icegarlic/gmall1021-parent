@@ -176,10 +176,30 @@ public class OrderWideApp {
 
                     }
                 },
-                60,
-                TimeUnit.SECONDS
+                60, TimeUnit.SECONDS
         );
-        orderWideWithUserStream.print(">>");
+//        orderWideWithUserStream.print(">>");
+
+        // TODO: 2021/4/25 关联省份维度
+        SingleOutputStreamOperator<OrderWide> orderWideWithProvinceStream = AsyncDataStream.unorderedWait(
+                orderWideWithUserStream,
+                new DimAsyncFunction<OrderWide>("DIM_BASE_PROVINCE") {
+
+                    @Override
+                    public String getKey(OrderWide orderWide) {
+                        return orderWide.getProvince_id().toString();
+                    }
+
+                    @Override
+                    public void join(OrderWide orderWide, JSONObject dimInfoJsonObj) throws Exception {
+                        orderWide.setProvince_name(dimInfoJsonObj.getString("NAME"));
+                        orderWide.setProvince_area_code(dimInfoJsonObj.getString("AREA_CODE"));
+                        orderWide.setProvince_iso_code(dimInfoJsonObj.getString("ISO_CODE"));
+                        orderWide.setProvince_3166_2_code(dimInfoJsonObj.getString("ISO_3166_2"));
+                    }
+                }, 60, TimeUnit.SECONDS
+        );
+        orderDetailJsonStream.print(">>");
 
         env.execute();
     }
