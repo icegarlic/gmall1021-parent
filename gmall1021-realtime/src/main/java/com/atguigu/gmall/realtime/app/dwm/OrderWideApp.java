@@ -1,6 +1,8 @@
 package com.atguigu.gmall.realtime.app.dwm;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.atguigu.gmall.realtime.app.func.DimAsyncFunction;
 import com.atguigu.gmall.realtime.bean.OrderDetail;
 import com.atguigu.gmall.realtime.bean.OrderInfo;
 import com.atguigu.gmall.realtime.bean.OrderWide;
@@ -9,6 +11,7 @@ import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
@@ -18,9 +21,45 @@ import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.Date;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 处理订单和订单明细数据形成的订单宽表
+ * <p>
+ * 用户维度关联测试
+ * -需要启动进程以及应用
+ * zk、kafka、hdfs、hbase、maxwell、redis、BaseDBApp、OrderWideApp
+ * -前期准备
+ * 维度历史数据的初始化
+ * maxwell-bootstrap到指定库的表中进行全表查询，将查询出的数据交给maxwell服务处理
+ * -执行流程
+ * >模拟生成业务数据jar
+ * >数据会生成到业务数据库MySQL中
+ * >MySQL会将数据记录到Binlog中
+ * >Maxwell会从Binlog中读取新增以及变化数据发送到Kafka的ods_base_db_m主题中
+ * >BaseDBApp从ods_base_db_m主题中读取数据，对数据进行分流
+ * *使用FlinkCDC读取配置表，并且使用广播状态向下广播
+ * *结合配置表中的配置信息，对流中的数据进行处理
+ * >事实数据，写回到Kafka的dwd层
+ * >维度数据，保存到Hbase的表中
+ * >OrderWideApp从dwd层读取订单和订单明细数据进行双流join
+ * intervalJoin
+ * >OrderWideApp将双流join之后的结果和维度表进行关联
+ * *普通维度查询
+ * *旁路缓存
+ * *异步IO
+ * &定义一个类，继承RichAsyncFunction
+ * &重写asyncInvoke方法，在该方法中通过线程池获取线程，发送异步请求
+ * &模板方法设计模式
+ * & 接收异步请求的结果
+ * resultFuture.complete(Collections.singleton(obj));
+ * &使用异步维度关联
+ * AsyncDataStream.unorderedWait(流,异步处理函数,超时时间,时间单位)
  */
 public class OrderWideApp {
 
@@ -113,7 +152,34 @@ public class OrderWideApp {
                         out.collect(new OrderWide(orderInfo, orderDetail));
                     }
                 });
-        orderWideStream.print("orderWide>>");
+//        orderWideStream.print("orderWide>>");
+
+        // TODO: 2021/4/25 用户维度进行关联
+        SingleOutputStreamOperator<OrderWide> orderWideWithUserStream = AsyncDataStream.unorderedWait(
+                orderWideStream,
+                new DimAsyncFunction<OrderWide>("DIM_USER_INFO") {
+                    @Override
+                    public String getKey(OrderWide orderWide) {
+                        return orderWide.getUser_id().toString();
+                    }
+
+                    @Override
+                    public void join(OrderWide orderWide, JSONObject dimInfoJsonObj) throws Exception {
+                        String birthday = dimInfoJsonObj.getString("BIRTHDAY");
+                        LocalDate birthdayLocalDate = LocalDate.parse(birthday);
+                        LocalDate now = LocalDate.now();
+                        Period period = Period.between(birthdayLocalDate, now);
+                        int age = period.getYears();
+
+                        orderWide.setUser_gender(dimInfoJsonObj.getString("GENDER"));
+                        orderWide.setUser_age(age);
+
+                    }
+                },
+                60,
+                TimeUnit.SECONDS
+        );
+        orderWideWithUserStream.print(">>");
 
         env.execute();
     }
