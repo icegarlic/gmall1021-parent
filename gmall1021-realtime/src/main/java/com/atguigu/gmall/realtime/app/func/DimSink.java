@@ -58,12 +58,11 @@ public class DimSink extends RichSinkFunction<JSONObject> {
                     ps.close();
                 }
             }
-            // 删除失效缓存
-            if (jsonObj.getString("type").equals("update")
-                    || jsonObj.getString("type").equals("delete")) {
+            //判断是否做的是update或者delete操作
+            if (jsonObj.getString("type").equals("update") || jsonObj.getString("type").equals("delete")) {
+                //清除Redis中缓存的维度数据
                 DimUtil.deleteCached(sinkTableName, dataJsonObj.getString("id"));
             }
-
         }
     }
 
