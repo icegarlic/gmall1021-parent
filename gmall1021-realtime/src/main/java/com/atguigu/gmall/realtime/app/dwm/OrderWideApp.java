@@ -199,7 +199,7 @@ public class OrderWideApp {
                     }
                 }, 60, TimeUnit.SECONDS
         );
-        orderDetailJsonStream.print(">>");
+        orderWideWithProvinceStream.print(">>");
 
         env.execute();
     }
