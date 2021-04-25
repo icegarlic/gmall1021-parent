@@ -237,7 +237,22 @@ public class OrderWideApp {
                     }
                 }, 60, TimeUnit.SECONDS
         );
-        orderWideWithSpuStream.print("!!!");
+//        orderWideWithSpuStream.print("!!!");
+
+        // TODO: 2021/4/25 关联品类维度
+        SingleOutputStreamOperator<OrderWide> orderWideWithCategoryStream = AsyncDataStream.unorderedWait(
+                orderWideWithSpuStream, new DimAsyncFunction<OrderWide>("DIM_BASE_CATEGORY3") {
+                    @Override
+                    public void join(OrderWide orderWide, JSONObject jsonObject) throws Exception {
+                        orderWide.setCategory3_name(jsonObject.getString("NAME"));
+                    }
+
+                    @Override
+                    public String getKey(OrderWide orderWide) {
+                        return String.valueOf(orderWide.getCategory3_id());
+                    }
+                }, 60, TimeUnit.SECONDS);
+        orderWideWithCategoryStream.print(">>");
 
         env.execute();
     }
