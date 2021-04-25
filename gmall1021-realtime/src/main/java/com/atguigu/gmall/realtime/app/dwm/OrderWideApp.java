@@ -223,7 +223,21 @@ public class OrderWideApp {
         );
 //        orderWideWithSkuStream.print("@@");
 
+        // TODO: 2021/4/25 关联spu维度
+        SingleOutputStreamOperator<OrderWide> orderWideWithSpuStream = AsyncDataStream.unorderedWait(
+                orderWideWithSkuStream, new DimAsyncFunction<OrderWide>("DIM_SPU_INFO") {
+                    @Override
+                    public void join(OrderWide orderWide, JSONObject jsonObject) throws Exception {
+                        orderWide.setSpu_name(jsonObject.getString("SPU_NAME"));
+                    }
 
+                    @Override
+                    public String getKey(OrderWide orderWide) {
+                        return String.valueOf(orderWide.getSpu_id());
+                    }
+                }, 60, TimeUnit.SECONDS
+        );
+        orderWideWithSpuStream.print("!!!");
 
         env.execute();
     }
