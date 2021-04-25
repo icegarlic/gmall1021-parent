@@ -5,7 +5,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 /**
- * Desc: 支付信息实体类
+ * 支付信息实体类
  */
 @Data
 public class PaymentInfo {
