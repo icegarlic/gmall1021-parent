@@ -20,7 +20,6 @@ import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 
-import java.nio.channels.SelectionKey;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.Period;
@@ -272,6 +271,10 @@ public class OrderWideApp {
                 }, 60, TimeUnit.SECONDS);
 //        orderWideWithTmStream.print("tm");
 
+        // TODO: 2021/4/25 将订单与订单明细双流 join 之后以及 维度关联 的宽表写到 kafka的dwm层
+        orderWideWithTmStream
+                .map(JSON::toJSONString)
+                .addSink(MyKafkaUtil.getKafkaSink(orderWideSinkTopic));
 
         env.execute();
     }
