@@ -19,7 +19,7 @@ import java.util.concurrent.ExecutorService;
 public abstract class DimAsyncFunction<T> extends RichAsyncFunction<T, T> implements DimJoinFunction<T> {
 
     private ExecutorService executorService;
-    private String tableName;
+    private final String tableName;
 
     public DimAsyncFunction(String tableName) {
         this.tableName = tableName;
