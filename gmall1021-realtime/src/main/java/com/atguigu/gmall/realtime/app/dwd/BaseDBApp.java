@@ -33,8 +33,8 @@ public class BaseDBApp {
 
 //        env.enableCheckpointing(5000L, CheckpointingMode.EXACTLY_ONCE);
 //        env.getCheckpointConfig().setCheckpointTimeout(60000L);
-          // job 失败保存检查点
-//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+          // job 失败保存检查点状态
+        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 //        env.setStateBackend(new FsStateBackend("hdfs://hadoop102:9820/gmall/flink/checkpoint"));
 //        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 3000L));
 //        System.setProperty("HADOOP_USER_NAME", "atguigu");
