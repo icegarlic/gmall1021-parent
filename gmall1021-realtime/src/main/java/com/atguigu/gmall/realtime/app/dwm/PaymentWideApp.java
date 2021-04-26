@@ -84,13 +84,13 @@ public class PaymentWideApp {
         KeyedStream<PaymentInfo, Long> paymentInfoKeyedStream = paymentJsonObjWithEventStream.keyBy(PaymentInfo::getOrder_id);
 
         //TODO 6.双流join(intervalJoin)  a.intervalJoin(b).between.process
-        SingleOutputStreamOperator<PaymentWide> paymentWithOrderStream = orderWideKeyedStream
-                .intervalJoin(paymentInfoKeyedStream)
-                .between(Time.seconds(0), Time.seconds(1800))
-                .process(new ProcessJoinFunction<OrderWide, PaymentInfo, PaymentWide>() {
+        SingleOutputStreamOperator<PaymentWide> paymentWithOrderStream = paymentInfoKeyedStream
+                .intervalJoin(orderWideKeyedStream)
+                .between(Time.seconds(-1800), Time.seconds(0))
+                .process(new ProcessJoinFunction<PaymentInfo, OrderWide, PaymentWide>() {
                     @Override
-                    public void processElement(OrderWide orderWide, PaymentInfo paymentInfo, Context ctx, Collector<PaymentWide> out) throws Exception {
-                        out.collect(new PaymentWide(orderWide, paymentInfo));
+                    public void processElement(PaymentInfo paymentInfo, OrderWide orderWide, Context ctx, Collector<PaymentWide> out) throws Exception {
+                        out.collect(new PaymentWide(paymentInfo, orderWide));
                     }
 
                 }).uid("payment_wide_join");

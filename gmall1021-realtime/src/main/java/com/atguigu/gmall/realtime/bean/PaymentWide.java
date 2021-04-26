@@ -55,7 +55,7 @@ public class PaymentWide {
     String tm_name;
     String category3_name;
 
-    public PaymentWide(OrderWide orderWide,PaymentInfo paymentInfo) {
+    public PaymentWide(PaymentInfo paymentInfo, OrderWide orderWide) {
         mergeOrderWide(orderWide);
         mergePaymentInfo(paymentInfo);
     }
