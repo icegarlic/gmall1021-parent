@@ -142,7 +142,7 @@ public class OrderWideApp {
         KeyedStream<OrderInfo, Long> orderInfoKeyedStream = orderInfoWithEventTimeStream.keyBy(OrderInfo::getId);
         KeyedStream<OrderDetail, Long> orderDetailKeyedStream = orderDetailWithEventTimeStream.keyBy(OrderDetail::getOrder_id);
 
-        // TODO: 2021/4/21 订单和订单明细关联 intervalJoin
+        // TODO: 2021/4/21 订单和订单明细关联 intervalJoin 一对多的时候，一在前面
         SingleOutputStreamOperator<OrderWide> orderWideStream = orderInfoKeyedStream
                 .intervalJoin(orderDetailKeyedStream)
                 .between(Time.seconds(-5), Time.seconds(5))
