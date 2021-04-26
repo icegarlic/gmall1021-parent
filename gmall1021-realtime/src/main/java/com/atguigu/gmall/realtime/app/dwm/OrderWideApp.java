@@ -15,6 +15,7 @@ import org.apache.flink.streaming.api.datastream.AsyncDataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
 import org.apache.flink.streaming.api.windowing.time.Time;
@@ -69,6 +70,7 @@ public class OrderWideApp {
         // 设置并行度读取kafka分区数据
         env.setParallelism(4);
 //        env.enableCheckpointing(5000L, CheckpointingMode.EXACTLY_ONCE);
+//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 //        env.getCheckpointConfig().setCheckpointTimeout(60000);
 //        env.setStateBackend(new FsStateBackend("hdfs://hadoop102:9820/gmall/flink/checkpoint/OrderWideApp"));
 //        System.setProperty("HADOOP_USER_NAME", "atguigu");

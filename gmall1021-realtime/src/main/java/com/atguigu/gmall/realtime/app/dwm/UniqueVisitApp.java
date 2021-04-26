@@ -12,6 +12,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.KeyedStream;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 import java.text.SimpleDateFormat;
@@ -27,6 +28,7 @@ public class UniqueVisitApp {
         env.setParallelism(4);
 //        env.enableCheckpointing(5000, CheckpointingMode.EXACTLY_ONCE);
 //        env.getCheckpointConfig().setCheckpointTimeout(60000);
+//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 //        env.setStateBackend(new FsStateBackend("hdfs://hadoop102:9820/gmall/flink/checkpoint/UniqueVisitApp"));
 //        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 3000));
 //        System.setProperty("HADOOP_USER_NAME","atguigu");

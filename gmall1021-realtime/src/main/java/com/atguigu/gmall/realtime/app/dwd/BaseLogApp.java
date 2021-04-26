@@ -11,6 +11,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.util.Collector;
@@ -30,6 +31,7 @@ public class BaseLogApp {
         env.setParallelism(4);
 //        env.enableCheckpointing(5000L, CheckpointingMode.EXACTLY_ONCE);
 //        env.getCheckpointConfig().setCheckpointTimeout(6000L);
+//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 //        env.setStateBackend(new FsStateBackend("hdfs://hadoop102:9820/gmall/flink/checkpoint"));
 //        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 3000L));
 //        System.setProperty("HADOOP_USER_NAME", "atguigu");
