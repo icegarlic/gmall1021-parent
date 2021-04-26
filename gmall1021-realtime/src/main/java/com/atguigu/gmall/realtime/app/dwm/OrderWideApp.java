@@ -67,7 +67,7 @@ public class OrderWideApp {
         // TODO: 2021/4/21 基本环境
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         // 设置并行度读取kafka分区数据
-//        env.setParallelism(4);
+        env.setParallelism(4);
 //        env.enableCheckpointing(5000L, CheckpointingMode.EXACTLY_ONCE);
 //        env.getCheckpointConfig().setCheckpointTimeout(60000);
 //        env.setStateBackend(new FsStateBackend("hdfs://hadoop102:9820/gmall/flink/checkpoint/OrderWideApp"));
