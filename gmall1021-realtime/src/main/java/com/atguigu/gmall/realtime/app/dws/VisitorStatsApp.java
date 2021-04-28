@@ -13,6 +13,7 @@ import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.streaming.api.datastream.*;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
@@ -53,6 +54,7 @@ public class VisitorStatsApp {
         env.setParallelism(4);
 //        env.enableCheckpointing(5000, CheckpointingMode.EXACTLY_ONCE);
 //        env.getCheckpointConfig().setCheckpointTimeout(60000);
+//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 //        env.setStateBackend(new FsStateBackend("hdfs://hadoop102:9820/gmall/flink/checkpoint"));
 //        env.setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 3000));
 //        System.setProperty("HADOOP_USER_NAME","atguigu");
