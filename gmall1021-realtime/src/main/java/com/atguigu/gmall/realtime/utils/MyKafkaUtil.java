@@ -6,7 +6,9 @@ import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.streaming.connectors.kafka.KafkaSerializationSchema;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
 
+import javax.annotation.Nullable;
 import java.util.Properties;
 
 /**
@@ -34,7 +36,16 @@ public class MyKafkaUtil {
      * sink kafka生产者
      */
     public static FlinkKafkaProducer<String> getKafkaSink(String topic) {
-        return new FlinkKafkaProducer<String>(KAFKA_SERVER, topic, new SimpleStringSchema());
+        Properties properties = new Properties();
+        properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, KAFKA_SERVER);
+        properties.setProperty(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 60 * 1000 * 15 + "");
+//        return new FlinkKafkaProducer<String>(KAFKA_SERVER, topic, new SimpleStringSchema());
+        return new FlinkKafkaProducer<String>(topic, new KafkaSerializationSchema<String>() {
+            @Override
+            public ProducerRecord<byte[], byte[]> serialize(String element, @Nullable Long timestamp) {
+                return new ProducerRecord<byte[], byte[]>(topic, null, element.getBytes());
+            }
+        }, properties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
     }
 
 
