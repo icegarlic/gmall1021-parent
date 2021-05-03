@@ -48,7 +48,6 @@ public class MyKafkaUtil {
         }, properties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
     }
 
-
     /**
      * 封装Kafka生产者 动态指定多个不同的主题
      */
@@ -58,5 +57,18 @@ public class MyKafkaUtil {
         // 如果超过15分钟没有更新状态，则超时。默认1分钟
         properties.setProperty(ProducerConfig.TRANSACTION_TIMEOUT_CONFIG, 1000 * 60 * 15 + "");
         return new FlinkKafkaProducer<T>(DEFAULT_TOPIC, serializationSchema, properties, FlinkKafkaProducer.Semantic.EXACTLY_ONCE);
+    }
+
+    /**
+     * 拼接Kafka相关属性
+     */
+    public static String getKafkaDDL(String topic,String groupId){
+        String ddl="'connector' = 'kafka', " +
+                " 'topic' = '"+topic+"',"   +
+                " 'properties.bootstrap.servers' = '"+ KAFKA_SERVER +"', " +
+                " 'properties.group.id' = '"+groupId+ "', " +
+                "  'format' = 'json', " +
+                "  'scan.startup.mode' = 'latest-offset'  ";
+        return  ddl;
     }
 }
