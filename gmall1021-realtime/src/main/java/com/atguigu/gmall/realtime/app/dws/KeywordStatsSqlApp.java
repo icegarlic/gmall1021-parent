@@ -65,10 +65,14 @@ public class KeywordStatsSqlApp {
 
         // TODO: 2021/4/30 将表转换为流
         DataStream<KeywordStats> keywordStatsStream = tableEnv.toAppendStream(keywordStatsSearch, KeywordStats.class);
-
-        // TODO: 2021/4/30 将流中数据写到ck中
         keywordStatsStream.print(">>>");
 
+        // TODO: 2021/4/30 将流中数据写到ck中
+        keywordStatsStream.addSink(
+                ClickHouseUtil.getJdbcSink("insert into keyword_stats_2021(keyword,ct,source,stt,edt,ts)  " +
+                        " values(?,?,?,?,?,?)"
+                )
+        );
         env.execute();
 
     }
