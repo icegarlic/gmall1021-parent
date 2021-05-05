@@ -7,7 +7,7 @@ import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.types.Row;
 
 /**
- * 自定义UDTF函数
+ * 自定义UDTF函数实现分词功能
  */
 @FunctionHint(output = @DataTypeHint("ROW<word STRING>"))
 public class KeywordUDTF extends TableFunction<Row> {
