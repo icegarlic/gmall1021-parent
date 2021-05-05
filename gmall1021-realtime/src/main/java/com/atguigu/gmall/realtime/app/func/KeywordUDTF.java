@@ -9,7 +9,7 @@ import org.apache.flink.types.Row;
 /**
  * 自定义UDTF函数
  */
-@FunctionHint(output = @DataTypeHint("ROW<word STING>"))
+@FunctionHint(output = @DataTypeHint("ROW<word STRING>"))
 public class KeywordUDTF extends TableFunction<Row> {
     public void eval(String text) {
         for (Object keyword : KeywordUtil.analyze(text)) {
