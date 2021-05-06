@@ -2,8 +2,10 @@ package com.atguigu.gmall.controller;
 
 import com.atguigu.gmall.bean.ProductStats;
 import com.atguigu.gmall.bean.ProvinceStats;
+import com.atguigu.gmall.bean.VisitorStats;
 import com.atguigu.gmall.service.ProductStatsService;
 import com.atguigu.gmall.service.ProvinceStatsService;
+import com.atguigu.gmall.service.VisitorStatsService;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.DateFormatUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +28,9 @@ public class SugarController {
 
     @Autowired
     ProvinceStatsService provinceStatsService;
+
+    @Autowired
+    VisitorStatsService visitorStatsService;
 
     /*
     {
@@ -232,12 +237,54 @@ public class SugarController {
         StringBuilder builder = new StringBuilder("{\"status\": 0,\"data\": {\"mapData\": [");
         for (int i = 0; i < provinceStatsList.size(); i++) {
             ProvinceStats provinceStats = provinceStatsList.get(i);
-            builder.append("{\"name\": \""+provinceStats.getProvince_name()+"\",\"value\": "+provinceStats.getOrder_amount()+"}");
-            if(i < provinceStatsList.size() - 1){
+            builder.append("{\"name\": \"" + provinceStats.getProvince_name() + "\",\"value\": " + provinceStats.getOrder_amount() + "}");
+            if (i < provinceStatsList.size() - 1) {
                 builder.append(",");
             }
         }
         builder.append("],\"valueName\":\"交易额\"}}");
         return builder.toString();
     }
+
+    @RequestMapping("/visitor")
+    public String getVisitorsStatsByNewFlag(@RequestParam(value = "date", defaultValue = "0") Integer date) {
+        if (date == 0) {
+            date = now();
+        }
+        List<VisitorStats> visitorStatsByNewFlagList = visitorStatsService.getVisitorStatsByNewFlag(date);
+        VisitorStats newVisitorStats = new VisitorStats();
+        VisitorStats oldVisitorStats = new VisitorStats();
+        // 循环将数据赋给新访客统计对象和老访客统计对象
+        for (VisitorStats visitorStats : visitorStatsByNewFlagList) {
+            if ("1".equals(visitorStats.getIs_new())) {
+                newVisitorStats = visitorStats;
+            } else {
+                oldVisitorStats = visitorStats;
+            }
+        }
+        //把数据拼接入字符串
+        String json = "{\"status\":0,\"data\":{\"combineNum\":1,\"columns\":" +
+                "[{\"name\":\"类别\",\"id\":\"type\"}," +
+                "{\"name\":\"新用户\",\"id\":\"new\"}," +
+                "{\"name\":\"老用户\",\"id\":\"old\"}]," +
+                "\"rows\":" +
+                "[{\"type\":\"用户数(人)\"," +
+                "\"new\": " + newVisitorStats.getUv_ct() + "," +
+                "\"old\":" + oldVisitorStats.getUv_ct() + "}," +
+                "{\"type\":\"总访问页面(次)\"," +
+                "\"new\":" + newVisitorStats.getPv_ct() + "," +
+                "\"old\":" + oldVisitorStats.getPv_ct() + "}," +
+                "{\"type\":\"跳出率(%)\"," +
+                "\"new\":" + newVisitorStats.getUjRate() + "," +
+                "\"old\":" + oldVisitorStats.getUjRate() + "}," +
+                "{\"type\":\"平均在线时长(秒)\"," +
+                "\"new\":" + newVisitorStats.getDurPerSv() + "," +
+                "\"old\":" + oldVisitorStats.getDurPerSv() + "}," +
+                "{\"type\":\"平均访问页面数(人次)\"," +
+                "\"new\":" + newVisitorStats.getPvPerSv() + "," +
+                "\"old\":" + oldVisitorStats.getPvPerSv()
+                + "}]}}";
+        return json;
+    }
+
 }
