@@ -1,8 +1,10 @@
 package com.atguigu.gmall.controller;
 
+import com.atguigu.gmall.bean.KeywordStats;
 import com.atguigu.gmall.bean.ProductStats;
 import com.atguigu.gmall.bean.ProvinceStats;
 import com.atguigu.gmall.bean.VisitorStats;
+import com.atguigu.gmall.service.KeywordStatsService;
 import com.atguigu.gmall.service.ProductStatsService;
 import com.atguigu.gmall.service.ProvinceStatsService;
 import com.atguigu.gmall.service.VisitorStatsService;
@@ -31,6 +33,9 @@ public class SugarController {
 
     @Autowired
     VisitorStatsService visitorStatsService;
+
+    @Autowired
+    KeywordStatsService keywordStatsService;
 
     /*
     {
@@ -287,4 +292,89 @@ public class SugarController {
         return json;
     }
 
+    @RequestMapping("/hr")
+    public String getMidStatsGroupbyHourNewFlag(@RequestParam(value = "date", defaultValue = "0") Integer date) {
+        if (date == 0) {
+            date = now();
+        }
+        List<VisitorStats> visitorStatsByHourList = visitorStatsService.getVisitorStatsByHour(date);
+
+        // 构建24位数组
+        VisitorStats[] visitorStatsArr = new VisitorStats[24];
+
+        // 把对应小时的位置赋值
+        for (VisitorStats visitorStats : visitorStatsByHourList) {
+            visitorStatsArr[visitorStats.getHr()] = visitorStats;
+        }
+
+        List<String> hrList = new ArrayList<>();
+        List<Long> uvList = new ArrayList<>();
+        List<Long> pvList = new ArrayList<>();
+        List<Long> newMidList = new ArrayList<>();
+
+        // 循环出固定的0-23个小时 从结果map中查询对应的值
+        for (int hr = 0; hr < 23; hr++) {
+            VisitorStats visitorStats = visitorStatsArr[hr];
+            if (visitorStats != null) {
+                uvList.add(visitorStats.getUv_ct());
+                pvList.add(visitorStats.getPv_ct());
+                newMidList.add(visitorStats.getNew_uv());
+            } else {
+                //该小时没有流量补零
+                uvList.add(0L);
+                pvList.add(0L);
+                newMidList.add(0L);
+            }
+            // 小时数不足俩位补零
+            hrList.add(String.format("%02d", hr));
+        }
+
+        // 拼接字符串
+        String json = "{\"status\":0,\"data\":{" + "\"categories\":" +
+                "[\"" + StringUtils.join(hrList, "\",\"") + "\"],\"series\":[" +
+                "{\"name\":\"uv\",\"data\":[" + StringUtils.join(uvList, ",") + "]}," +
+                "{\"name\":\"pv\",\"data\":[" + StringUtils.join(pvList, ",") + "]}," +
+                "{\"name\":\"新用户\",\"data\":[" + StringUtils.join(newMidList, ",") + "]}]}}";
+        return json;
+
+    }
+
+    /*
+    {
+        "status": 0,
+            "data": [
+        {
+            "name": "data",
+                "value": 60679,
+        },
+        {
+            "name": "dataZoom",
+                "value": 24347,
+        }
+    ]
+    }
+     */
+    @RequestMapping("/keyword")
+    public Object getKeywordStats(@RequestParam(value = "date", defaultValue = "0") Integer date, @RequestParam(value = "limit", defaultValue = "20") Integer limit) {
+        if (date == 0) {
+            date = now();
+        }
+
+        List<KeywordStats> keywordStatsList = keywordStatsService.getKeywordStats(date, limit);
+
+        Map resMap = new HashMap();
+        resMap.put("status", 0);
+
+        List dataList = new ArrayList();
+
+        for (KeywordStats keywordStats : keywordStatsList) {
+            Map dataMap = new HashMap();
+            dataMap.put("name", keywordStats.getKeyword());
+            dataMap.put("value", keywordStats.getCt());
+            dataList.add(dataMap);
+        }
+        resMap.put("data", dataList);
+
+        return resMap;
+    }
 }
